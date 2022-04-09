@@ -1,0 +1,153 @@
+﻿@using DuelWebPageCommunication.Data
+@using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage
+@inject ProtectedSessionStorage sessionStorage
+@inject ProtectedLocalStorage localStorage
+
+
+@if (isLoading)
+{
+    <div class="row">
+        <div class="col text-center">
+            <p class="text-center"><em>Loading...</em></p>
+        </div>
+    </div>
+}
+else
+{
+    <CascadingValue Value="this">
+        @ChildContent
+    </CascadingValue>
+}
+
+@code {
+    [Parameter]
+    public RenderFragment ChildContent { get; set; }
+
+    public SessionViewModel Session { get; set; } = new SessionViewModel();
+
+    private bool isLoading = true;
+
+    /// <summary>
+    /// on initalize - check if we have storage and set sessionservice
+    /// </summary>
+    /// <returns></returns>
+    protected override async Task OnInitializedAsync()
+    {
+        await ManageSession();
+    }
+
+    public async Task ManageSession()
+    {
+        // get session ID
+        Session.SessionID = await GetSessionID();
+
+        // find session obj in local storage and parse
+        var response = await localStorage.GetAsync<SessionViewModel>(Session.SessionID);
+        if (response.Success && response.Value != null)
+        {
+            // set and fetch data for live session
+            Session = response.Value;
+        }
+
+        isLoading = false;
+    }
+
+    /// <summary>
+    /// manage session id by setting or getting ID with session storage
+    /// </summary>
+    /// <returns></returns>
+    public async Task<string> GetSessionID()
+    {
+        // session ID defaults to SessionContainer ID generated
+        string sessionID = Session.SessionID;
+
+        // check if session exists in session storage
+        var sessionResponse = await sessionStorage.GetAsync<string>("sessionID");
+        if (sessionResponse.Success && !string.IsNullOrEmpty(sessionResponse.Value))
+        {
+            // set sessionID to existing sessionID to get valid session data
+            sessionID = sessionResponse.Value;
+        }
+        else
+        {
+            // save the already set and generated sessionID in session storage
+            // session based (tab based) - set session ID here so we can relate what tab in web page relates to local storage
+            await sessionStorage.SetAsync("sessionID", sessionID);
+
+            // save empty session tied to sessionID
+            await UpdateSession();
+        }
+
+        // return new/saved session ID
+        return sessionID;
+    }
+
+    /// <summary>
+    /// stand alone function to handle updating session
+    /// </summary>
+    public async Task UpdateSession()
+    {
+        //strip the data we don't want to add to session
+        await localStorage.SetAsync(Session.SessionID, Session);
+    }
+
+    public async Task UpdateSessionMessage(string message)
+    {
+        Session.Message = message;
+        await UpdateSession();
+    }
+
+    ///// <summary>
+    ///// set user in own local storage object so it can be used on all tabs
+    ///// </summary>
+    ///// <returns></returns>
+    //public async Task SetUserInStorage()
+    //{
+    //    await localStorage.SetItemAsync<UserViewModel>("user", User);
+    //}
+
+    ///// <summary>
+    ///// function is to build a viewmodel without limited but important data for local storage. We need to save space 
+    ///// </summary>
+    ///// <returns></returns>
+    //public SessionViewModel BuildSaveSession()
+    //{
+    //    return new SessionViewModel()
+    //        {
+    //            SessionID = Session.SessionID,
+    //            SubjectSeries = new SubjectSeriesViewModel()
+    //            {
+    //                DOSCode = Session.SubjectSeries.DOSCode,
+    //                HisUploadDate = Session.SubjectSeries.HisUploadDate,
+    //                IsCompanyData = Session.SubjectSeries.IsCompanyData,
+    //                MetaDataID = Session.SubjectSeries.MetaDataID,
+    //                MMAMMT = Session.SubjectSeries.MMAMMT,
+    //                NextGenBaseID = Session.SubjectSeries.NextGenBaseID,
+    //                SeriesName = Session.SubjectSeries.SeriesName,
+    //                StatPref = Session.SubjectSeries.StatPref,
+    //                //MetricData = Session.SubjectSeries.MetricData // to big for object
+    //            }
+    //        };
+    //}
+
+    ///// <summary>
+    ///// When page loads - build viewmodel again fetchind data we need
+    ///// </summary>
+    ///// <param name="localStorageData"></param>
+    ///// <returns></returns>
+    //public async Task<SessionViewModel> BuildSessionViewModel(SessionViewModel localStorageData)
+    //{
+    //    SessionViewModel model = localStorageData;
+
+    //    //build subject series
+    //    if (localStorageData.SubjectSeries.MetaDataID != 0)
+    //    {
+    //        model.SubjectSeries.MetricData = await SessionService.GetMetricData(
+    //            localStorageData.SubjectSeries.MetaDataID,
+    //            localStorageData.SubjectSeries.HisUploadDate
+    //        );
+    //    }
+
+    //    return model;
+    //}
+}

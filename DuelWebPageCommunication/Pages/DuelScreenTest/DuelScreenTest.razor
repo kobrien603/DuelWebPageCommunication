@@ -1,0 +1,113 @@
+﻿@page "/"
+@page "/{SelectedTab}/{IsPopup:bool}"
+
+@using DuelWebPageCommunication.Pages.DuelScreenTest.Shared
+
+@inject IJSRuntime JS
+
+<h3>Duel Screen Test</h3>
+
+<div class="row">
+    <div class="col">
+        <button type="button" class="btn-primary" @onclick="OpenDuelScreen">Open Duel Screen</button>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col">
+        <p>@SessionContainer.Session.Message</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col">
+        <input type="text" value="@SessionContainer.Session.Message" @oninput="UpdateSessionMessage" />
+    </div>
+</div>
+
+<Tabs SelectedTab="@SelectedTab" Mode="TabsMode.LazyLoad" SelectedTabChanged="@OnSelectedTabChanged" FullWidth>
+    <Items>
+        <Tab Name="a">Component A</Tab>
+        <Tab Name="b">Component B</Tab>
+        <Tab Name="c">Component C</Tab>
+        <Tab Name="d">Component D</Tab>
+    </Items>
+    <Content>
+        <TabPanel Name="a">
+            <ComponentA />
+        </TabPanel>
+        <TabPanel Name="b">
+            <ComponentB />
+        </TabPanel>
+        <TabPanel Name="c">
+            <ComponentC />
+        </TabPanel>
+        <TabPanel Name="d">
+            <ComponentD />
+        </TabPanel>
+    </Content>
+</Tabs>
+
+@code {
+    [CascadingParameter]
+    SessionContainer SessionContainer { get; set; }
+
+    [Parameter]
+    public string SelectedTab { get; set; }
+
+    [Parameter]
+    public bool IsPopup { get; set; }
+
+    protected override void OnInitialized()
+    {
+        SelectedTab = SelectedTab ?? "a";
+        IsPopup = IsPopup == true;
+    }
+
+    /// <summary>
+    /// open popup window - map based on tab selected from parent page
+    /// </summary>
+    private async void OpenDuelScreen()
+    {
+        switch(SelectedTab)
+        {
+            case "a":
+                await JS.InvokeVoidAsync("openWindow", "duel-screen-test", "/b/true");
+                break;
+            case "b":
+                await JS.InvokeVoidAsync("openWindow", "duel-screen-test", "/a/true");
+                break;
+            case "c":
+                await JS.InvokeVoidAsync("openWindow", "duel-screen-test", "/d/true");
+                break;
+            case "d":
+                await JS.InvokeVoidAsync("openWindow", "duel-screen-test", "/c/true");
+                break;
+            default:
+                break;
+
+        }
+    }
+
+    /// <summary>
+    /// call back for what tab is selected - can be used to save state of tab selected?
+    /// </summary>
+    /// <param name="name"></param>
+    /// <returns></returns>
+    private Task OnSelectedTabChanged(string name)
+    {
+        SelectedTab = name;
+
+        if (!IsPopup)
+        {
+            OpenDuelScreen();
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private async void UpdateSessionMessage(ChangeEventArgs e)
+    {
+        await SessionContainer.UpdateSessionMessage(e.Value.ToString());
+    }
+}
